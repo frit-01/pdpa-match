@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>PDPA Match — คิดก่อนกด ข้อมูลคุณมีค่า</title>
+<style>
+  /* =========================================================
+     ส่วนแก้สี (ธีมนีออน) — เปลี่ยนค่าตรงนี้ที่เดียว ทั้งเว็บจะเปลี่ยนตาม
+     ========================================================= */
+  :root {
+    --bg:        #070b24;   /* พื้นหลังหลัก (น้ำเงินกรมท่าเข้ม) */
+    --bg2:       #121a4a;   /* พื้นหลังไล่สี */
+    --card:      #131c52;   /* สีการ์ด */
+    --line:      rgba(140,160,255,.18); /* เส้นขอบบาง ๆ */
+    --pink:      #ff2e6e;   /* ชมพูแดงนีออน = "ผิด" */
+    --lime:      #b6ff3b;   /* เขียวมะนาวนีออน = "ไม่ผิด" / ตอบถูก */
+    --cyan:      #46e3ff;   /* สีเน้นรอง */
+    --text:      #f2f4ff;   /* ตัวอักษรหลัก */
+    --muted:     #9aa5d8;   /* ตัวอักษรรอง */
+  }
+
+  /* ---------- พื้นฐาน ---------- */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: Tahoma, "Leelawadee UI", "Leelawadee", "Thonburi", "Noto Sans Thai", sans-serif;
+    background:
+      radial-gradient(600px 400px at 15% -10%, rgba(255,46,110,.18), transparent 60%),
+      radial-gradient(600px 400px at 110% 20%, rgba(70,227,255,.12), transparent 60%),
+      linear-gradient(180deg, var(--bg2), var(--bg) 60%);
+    background-attachment: fixed;
+    color: var(--text);
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* ลายตารางจาง ๆ ด้านหลัง */
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: -1;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 36px 36px; opacity: .25;
+    mask-image: linear-gradient(180deg, #000, transparent 80%);
+    -webkit-mask-image: linear-gradient(180deg, #000, transparent 80%);
+  }
+  .app { width: 100%; max-width: 440px; flex: 1; display: flex; flex-direction: column; padding: 18px 18px 10px; }
+  .screen { display: none; flex: 1; flex-direction: column; animation: fadeIn .35s ease; }
+  .screen.active { display: flex; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+  svg.ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ---------- ปุ่มทั่วไป ---------- */
+  .btn {
+    font-family: inherit; font-size: 1.1rem; font-weight: bold; letter-spacing: .3px;
+    border: none; border-radius: 14px; padding: 15px 28px; cursor: pointer; width: 100%;
+    color: var(--bg); background: var(--lime);
+    box-shadow: 0 0 0 1px rgba(255,255,255,.2) inset, 0 8px 24px rgba(182,255,59,.35);
+    transition: transform .15s, box-shadow .15s;
+  }
+  .btn:hover { box-shadow: 0 0 0 1px rgba(255,255,255,.3) inset, 0 8px 32px rgba(182,255,59,.55); }
+  .btn:active { transform: scale(.97); }
+  .btn.pink { background: var(--pink); color: #fff; box-shadow: 0 8px 24px rgba(255,46,110,.4); }
+
+  .eyebrow { font-size: .78rem; letter-spacing: 2px; color: var(--cyan); text-transform: uppercase; }
+
+  /* ---------- หน้าเริ่มต้น ---------- */
+  #start { justify-content: center; text-align: center; gap: 26px; }
+  .logo {
+    width: 92px; height: 92px; margin: 0 auto; border-radius: 26px;
+    display: grid; place-items: center; color: var(--pink);
+    background: linear-gradient(145deg, rgba(255,46,110,.15), rgba(70,227,255,.08));
+    border: 1.5px solid rgba(255,46,110,.6);
+    box-shadow: 0 0 30px rgba(255,46,110,.45);
+    animation: float 3s ease-in-out infinite;
+  }
+  .logo svg { width: 48px; height: 48px; stroke-width: 2.2; }
+  @keyframes float { 50% { transform: translateY(-6px); } }
+  .title { font-size: 3rem; line-height: 1.1; font-weight: 800; letter-spacing: -1px; }
+  .title .a { color: #fff; text-shadow: 0 0 18px rgba(255,46,110,.8); }
+  .title .b { color: var(--lime); text-shadow: 0 0 18px rgba(182,255,59,.7); }
+  .slogan { font-size: 1.15rem; color: var(--text); opacity: .9; margin-top: 8px; }
+  .howto { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .howto div {
+    border-radius: 14px; padding: 14px 10px; font-size: .92rem; line-height: 1.5;
+    background: rgba(255,255,255,.04); border: 1px solid var(--line);
+  }
+  .howto .dir { display: block; font-size: .75rem; color: var(--muted); margin-bottom: 4px; letter-spacing: 1px; }
+  .howto .w b { color: var(--pink); } .howto .o b { color: var(--lime); }
+  .note { color: var(--muted); font-size: .85rem; }
+
+  /* ---------- หน้าเล่นเกม ---------- */
+  .topbar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  .topbar .count { font-size: 1.5rem; font-weight: bold; }
+  .topbar .count small { font-size: .95rem; color: var(--muted); font-weight: normal; }
+  .topbar .score { font-size: .9rem; color: var(--muted); }
+  .topbar .score b { color: var(--lime); font-size: 1.15rem; }
+  .segments { display: flex; gap: 4px; margin-bottom: 16px; }
+  .segments i { flex: 1; height: 5px; border-radius: 3px; background: rgba(255,255,255,.1); transition: background .3s; }
+  .segments i.right { background: var(--lime); box-shadow: 0 0 6px var(--lime); }
+  .segments i.miss  { background: var(--pink); box-shadow: 0 0 6px var(--pink); }
+  .segments i.now   { background: var(--cyan); }
+
+  .deck { position: relative; flex: 1; min-height: 370px; }
+  .card {
+    position: absolute; inset: 0;
+    background: linear-gradient(165deg, #1a2566, var(--card) 45%, #0c1440);
+    border: 1px solid rgba(140,160,255,.3); border-radius: 26px;
+    box-shadow: 0 18px 40px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.04) inset;
+    padding: 24px 22px 54px; display: flex; flex-direction: column;
+    touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab;
+    will-change: transform; overflow: hidden;
+  }
+  .card::after { /* แถบสีด้านบนการ์ด */
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: linear-gradient(90deg, var(--pink), var(--cyan), var(--lime));
+  }
+  .card.dragging { cursor: grabbing; }
+  .card.ghost { transform: scale(.93) translateY(16px); opacity: .45; pointer-events: none; }
+  .card .head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+  .card .avatar {
+    width: 46px; height: 46px; border-radius: 50%; flex: none;
+    display: grid; place-items: center; font-weight: bold; font-size: 1.15rem;
+    color: var(--bg); background: var(--cyan);
+  }
+  .card .who { font-weight: bold; font-size: 1rem; }
+  .card .who small { display: block; font-weight: normal; color: var(--muted); font-size: .8rem; }
+  .card .text { flex: 1; display: flex; align-items: center; font-size: 1.22rem; line-height: 1.8; }
+  .card .ask { color: var(--cyan); font-size: .95rem; text-align: center; }
+  .card .hint {
+    position: absolute; bottom: 16px; left: 22px; right: 22px;
+    display: flex; justify-content: space-between; color: var(--muted); font-size: .78rem;
+  }
+
+  /* ป้ายที่ขึ้นตอนลาก */
+  .stamp {
+    position: absolute; top: 26px; padding: 6px 16px; border-radius: 10px;
+    font-size: 1.5rem; font-weight: 800; border: 3px solid; opacity: 0; pointer-events: none;
+    background: rgba(7,11,36,.7);
+  }
+  .stamp.wrong { right: 18px; color: var(--pink); border-color: var(--pink); transform: rotate(10deg); box-shadow: 0 0 16px var(--pink); }
+  .stamp.ok    { left: 18px;  color: var(--lime); border-color: var(--lime); transform: rotate(-10deg); box-shadow: 0 0 16px var(--lime); }
+
+  .controls { display: flex; justify-content: center; gap: 18px; padding: 18px 0 4px; }
+  .choice {
+    flex: 1; max-width: 170px; height: 62px; border-radius: 18px; cursor: pointer;
+    font-family: inherit; font-size: 1.05rem; font-weight: bold;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    background: rgba(255,255,255,.03); border: 2px solid; transition: transform .15s, background .15s;
+  }
+  .choice svg { width: 22px; height: 22px; }
+  .choice:active { transform: scale(.94); }
+  .choice.wrong { color: var(--pink); border-color: var(--pink); box-shadow: 0 0 18px rgba(255,46,110,.3); }
+  .choice.ok    { color: var(--lime); border-color: var(--lime); box-shadow: 0 0 18px rgba(182,255,59,.25); }
+  .choice.wrong:hover { background: rgba(255,46,110,.12); }
+  .choice.ok:hover    { background: rgba(182,255,59,.1); }
+
+  /* ---------- หน้าเฉลย ---------- */
+  #reveal { justify-content: center; gap: 18px; }
+  .verdict {
+    border-radius: 26px; padding: 28px 20px 24px; text-align: center; position: relative; overflow: hidden;
+    border: 2px solid currentColor;
+  }
+  .verdict.good { color: var(--lime); background: radial-gradient(circle at 50% 0%, rgba(182,255,59,.25), rgba(182,255,59,.04) 70%); box-shadow: 0 0 40px rgba(182,255,59,.3); }
+  .verdict.bad  { color: var(--pink); background: radial-gradient(circle at 50% 0%, rgba(255,46,110,.28), rgba(255,46,110,.05) 70%); box-shadow: 0 0 40px rgba(255,46,110,.35); }
+  .verdict .mark {
+    width: 74px; height: 74px; margin: 0 auto 10px; border-radius: 50%;
+    display: grid; place-items: center; background: currentColor;
+    animation: pop .45s cubic-bezier(.2,1.6,.4,1);
+  }
+  .verdict .mark svg { width: 40px; height: 40px; stroke: var(--bg); stroke-width: 3.5; }
+  @keyframes pop { from { transform: scale(0); } to { transform: scale(1); } }
+  .verdict h2 { font-size: 3rem; line-height: 1.15; font-weight: 800; text-shadow: 0 0 22px currentColor; }
+  .verdict .sub { color: var(--text); opacity: .8; font-size: .95rem; margin-top: 6px; }
+
+  .explain-box {
+    background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 20px; padding: 18px 18px 20px;
+  }
+  .explain-box .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .explain-box .label { font-size: .8rem; color: var(--muted); letter-spacing: 1px; }
+  .key {
+    font-size: .85rem; font-weight: bold; padding: 4px 12px; border-radius: 8px;
+    border: 1.5px solid currentColor; white-space: nowrap;
+  }
+  .key.wrong { color: var(--pink); } .key.ok { color: var(--lime); }
+  .explain-box .q { color: var(--muted); font-size: .9rem; line-height: 1.7; padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px dashed var(--line); }
+  .explain-box .why { line-height: 1.85; }
+
+  /* ---------- หน้าสรุปผล ---------- */
+  #result { justify-content: center; gap: 18px; text-align: center; }
+  .score-ring {
+    width: 160px; height: 160px; margin: 0 auto; border-radius: 50%; position: relative;
+    display: grid; place-items: center;
+  }
+  .score-ring .num { font-size: 3.2rem; font-weight: 800; line-height: 1; }
+  .score-ring .num small { font-size: 1.1rem; color: var(--muted); font-weight: normal; }
+  .rank { font-size: 1.9rem; font-weight: 800; }
+  .rank.good { color: var(--lime); text-shadow: 0 0 18px rgba(182,255,59,.6); }
+  .rank.mid  { color: var(--cyan); text-shadow: 0 0 18px rgba(70,227,255,.6); }
+  .rank.bad  { color: var(--pink); text-shadow: 0 0 18px rgba(255,46,110,.6); }
+  .rank-msg { color: var(--muted); line-height: 1.7; }
+  .checklist { text-align: left; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 20px; padding: 18px; }
+  .checklist h3 { font-size: 1.05rem; margin-bottom: 12px; }
+  .checklist h3 span { color: var(--lime); }
+  .checklist ol { list-style: none; counter-reset: c; }
+  .checklist li { counter-increment: c; padding: 9px 0 9px 44px; position: relative; line-height: 1.6; font-size: .95rem; }
+  .checklist li + li { border-top: 1px solid var(--line); }
+  .checklist li::before {
+    content: counter(c); position: absolute; left: 0; top: 10px; width: 30px; height: 30px; border-radius: 9px;
+    display: grid; place-items: center; font-weight: bold; color: var(--bg); background: var(--lime);
+  }
+  .checklist li b { color: #fff; }
+
+  /* ---------- ส่วนท้าย ---------- */
+  footer { width: 100%; text-align: center; padding: 14px 16px 18px; color: var(--muted); font-size: .76rem; line-height: 1.6; border-top: 1px solid var(--line); }
+
+  @media (max-height: 680px) {
+    .card .text { font-size: 1.05rem; }
+    .deck { min-height: 310px; }
+    .verdict h2 { font-size: 2.4rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ไอคอนวาดด้วย SVG ในไฟล์ (ไม่ใช้รูปจากภายนอก) -->
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M4.5 12.5l5 5L19.5 7"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></symbol>
+</svg>
+
+<div class="app">
+
+  <!-- ================= หน้าเริ่มต้น ================= -->
+  <section id="start" class="screen active">
+    <div class="logo"><svg class="ic"><use href="#i-shield"/></svg></div>
+    <div>
+      <div class="eyebrow">PDPA Awareness Game</div>
+      <h1 class="title"><span class="a">PDPA</span> <span class="b">Match</span></h1>
+      <p class="slogan">คิดก่อนกด ข้อมูลคุณมีค่า</p>
+    </div>
+    <div class="howto">
+      <div class="w"><span class="dir">← ปัดซ้าย</span><b>ผิด PDPA</b></div>
+      <div class="o"><span class="dir">ปัดขวา →</span><b>ไม่ผิด PDPA</b></div>
+    </div>
+    <p class="note">อ่านสถานการณ์ แล้วตัดสินใจ หรือกดปุ่มใต้การ์ดก็ได้</p>
+    <button class="btn" id="btnStart">เริ่มเล่น</button>
+  </section>
+
+  <!-- ================= หน้าเล่นเกม ================= -->
+  <section id="game" class="screen">
+    <div class="topbar">
+      <div class="count">ข้อ <span id="qNum">1</span><small>/<span id="qTotal">10</span></small></div>
+      <div class="score">คะแนน <b id="scoreNow">0</b></div>
+    </div>
+    <div class="segments" id="segments"></div>
+
+    <div class="deck" id="deck"></div>
+
+    <div class="controls">
+      <button class="choice wrong" id="btnWrong"><svg class="ic"><use href="#i-x"/></svg>ผิด</button>
+      <button class="choice ok" id="btnOk"><svg class="ic"><use href="#i-check"/></svg>ไม่ผิด</button>
+    </div>
+  </section>
+
+  <!-- ================= หน้าเฉลย ================= -->
+  <section id="reveal" class="screen">
+    <div class="verdict" id="verdict">
+      <div class="mark"><svg class="ic"><use id="verdictIcon" href="#i-check"/></svg></div>
+      <h2 id="verdictText">ตอบถูก!</h2>
+      <p class="sub" id="verdictSub"></p>
+    </div>
+    <div class="explain-box">
+      <div class="row">
+        <span class="label">เฉลยข้อนี้</span>
+        <span class="key" id="answerKey">ผิด PDPA</span>
+      </div>
+      <div class="q" id="revealQ"></div>
+      <div class="why" id="revealExplain"></div>
+    </div>
+    <button class="btn" id="btnNext">ข้อต่อไป</button>
+  </section>
+
+  <!-- ================= หน้าสรุปผล ================= -->
+  <section id="result" class="screen">
+    <div class="eyebrow">ผลของคุณ</div>
+    <div class="score-ring">
+      <svg viewBox="0 0 160 160" style="position:absolute;inset:0;transform:rotate(-90deg)">
+        <circle cx="80" cy="80" r="70" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="10"/>
+        <circle id="ringBar" cx="80" cy="80" r="70" fill="none" stroke="var(--lime)" stroke-width="10"
+                stroke-linecap="round" stroke-dasharray="440" stroke-dashoffset="440"
+                style="transition:stroke-dashoffset 1s ease; filter:drop-shadow(0 0 6px var(--lime))"/>
+      </svg>
+      <div class="num"><span id="finalScore">0</span><small>/<span id="finalTotal">10</span></small></div>
+    </div>
+    <div class="rank" id="rankTitle">ผู้พิทักษ์ข้อมูล</div>
+    <p class="rank-msg" id="rankMsg"></p>
+    <div class="checklist">
+      <h3>เช็กลิสต์ <span>"คิดก่อนกด"</span></h3>
+      <ol>
+        <li><b>ถามก่อนโพสต์</b> — รูปหรือคลิปที่มีคนอื่น ขออนุญาตเจ้าตัวก่อนเผยแพร่ และลบเมื่อเขาขอ</li>
+        <li><b>ปิดข้อมูลสำคัญ</b> — เลขบัตร ที่อยู่ เบอร์โทร เลขบัญชี ต้องเบลอหรือปิดก่อนแชร์เสมอ</li>
+        <li><b>อ่านก่อนกดยอมรับ</b> — ให้สิทธิ์แอปและคุกกี้เท่าที่จำเป็น และรู้ว่าถอนความยินยอมได้</li>
+      </ol>
+    </div>
+    <button class="btn pink" id="btnRestart">เล่นอีกครั้ง</button>
+  </section>
+
+</div>
+
+<!-- ================= ส่วนท้ายหน้า ================= -->
+<footer>
+  ข้อมูลในเกมเป็นสถานการณ์สมมติ เพื่อการศึกษาเท่านั้น<br>
+  รายวิชา Citizenship in Society and International Community<br>
+  แคมเปญ "คิดก่อนกด ข้อมูลคุณมีค่า"
+</footer>
+
+<script>
+/* =========================================================
+   ส่วนแก้โจทย์ — เพิ่ม/ลบ/แก้ข้อได้ที่ array นี้ที่เดียว
+   text    = สถานการณ์บนการ์ด
+   answer  = "wrong" (ผิด PDPA) หรือ "ok" (ไม่ผิด PDPA)
+   explain = คำอธิบายในหน้าเฉลย
+   who     = ชื่อผู้พูด (ว่างไว้ "" ได้)
+   ========================================================= */
+const QUESTIONS = [
+  {
+    text: "ถ่ายคลิปเพื่อนตอนกำลังร้องไห้ แล้วโพสต์ลงโซเชียลแบบสาธารณะโดยไม่ถามก่อน พอเพื่อนขอให้ลบก็ไม่ยอมลบ",
+    answer: "wrong",
+    explain: "การเผยแพร่ภาพของคนอื่นต่อสาธารณะโดยไม่ได้รับความยินยอม เกินขอบเขตการใช้เพื่อประโยชน์ส่วนตัว และละเมิดความเป็นส่วนตัวของเพื่อน ยิ่งเจ้าของข้อมูลขอให้ลบแล้วไม่ลบ ก็ยิ่งผิดหลักการเคารพสิทธิ์ของเจ้าของข้อมูลส่วนบุคคล",
+    who: "มิน"
+  },
+  {
+    text: "ถ่ายรูปกลุ่มกับเพื่อน ๆ แล้วเก็บไว้ดูเอง หรือส่งในกลุ่มแชตส่วนตัวที่มีแค่คนในรูป",
+    answer: "ok",
+    explain: "PDPA ยกเว้นการใช้ข้อมูลเพื่อประโยชน์ส่วนตัวหรือกิจกรรมในครอบครัว การถ่ายรูปเก็บไว้ดูเองหรือแชร์ในกลุ่มส่วนตัวของคนในรูปจึงไม่ผิด แต่ถ้าจะโพสต์สาธารณะ ควรถามเพื่อนก่อนเสมอ",
+    who: "ฟ้า"
+  },
+  {
+    text: "ได้บัตรนักศึกษาใบใหม่ เลยถ่ายรูปบัตรที่เห็นชื่อ รูปหน้า และเลขประจำตัวชัดเจน โพสต์อวดลงโซเชียลแบบสาธารณะ",
+    answer: "wrong",
+    explain: "แม้เป็นข้อมูลของเราเอง แต่การเปิดเผยเลขประจำตัวพร้อมชื่อและรูปหน้าต่อสาธารณะ ขัดหลักการปกป้องข้อมูลส่วนบุคคล และเสี่ยงต่อการถูกนำไปสวมรอยหรือหลอกลวง ถ้าอยากโพสต์ควรเบลอหรือปิดเลขก่อน",
+    who: "โอ๊ต"
+  },
+  {
+    text: "ส่งสำเนาบัตรประชาชนให้บริษัทที่ไปสมัครงาน โดยขีดคร่อมและเขียนกำกับว่า \"ใช้เพื่อสมัครงานเท่านั้น\"",
+    answer: "ok",
+    explain: "การให้ข้อมูลกับบริษัทที่เราสมัครงานจริงเพื่อวัตถุประสงค์ที่ชัดเจนถือว่าทำได้ การขีดคร่อมและระบุวัตถุประสงค์ช่วยจำกัดไม่ให้สำเนาถูกนำไปใช้ผิดวัตถุประสงค์ ซึ่งเป็นวิธีปกป้องข้อมูลที่ดี",
+    who: "แนน"
+  },
+  {
+    text: "แอปเกมขอสิทธิ์เข้าถึงรายชื่อผู้ติดต่อ ตำแหน่งที่อยู่ และกล้อง ทั้งที่ไม่เกี่ยวกับการเล่นเกม และถ้าไม่กดยอมรับทั้งหมดก็เล่นไม่ได้",
+    answer: "wrong",
+    explain: "PDPA กำหนดให้เก็บข้อมูลเท่าที่จำเป็นตามวัตถุประสงค์ และความยินยอมต้องให้อย่างอิสระ ไม่ควรบังคับให้ยอมรับการเก็บข้อมูลที่ไม่จำเป็นต่อบริการเป็นเงื่อนไข การขอสิทธิ์เกินจำเป็นแบบนี้จึงไม่ถูกต้อง",
+    who: "แอปเกม"
+  },
+  {
+    text: "เข้าเว็บไซต์แล้วเจอแบนเนอร์คุกกี้ เลยเลือกยินยอมเฉพาะคุกกี้ที่จำเป็น และรู้ว่าสามารถเข้าไปถอนความยินยอมได้ภายหลัง",
+    answer: "ok",
+    explain: "นี่คือการใช้สิทธิ์ของเจ้าของข้อมูลอย่างถูกต้อง เราเลือกให้ความยินยอมเฉพาะส่วนได้ และตามกฎหมาย ความยินยอมต้องถอนได้ง่ายเท่ากับตอนให้ เว็บที่เปิดให้เลือกแบบนี้ก็ทำถูกหลัก PDPA",
+    who: "เจ"
+  },
+  {
+    text: "เพื่อนแคปแชตกลุ่มที่เห็นชื่อจริงและเบอร์โทรของเพื่อนอีกคน ไปโพสต์ประจานในเพจสาธารณะเพราะไม่พอใจ",
+    answer: "wrong",
+    explain: "ชื่อจริงและเบอร์โทรเป็นข้อมูลส่วนบุคคล การนำไปเปิดเผยต่อสาธารณะโดยเจ้าตัวไม่ยินยอม ไม่ใช่การใช้เพื่อประโยชน์ส่วนตัวอีกต่อไป และอาจทำให้เขาถูกคุกคาม ถ้ามีปัญหากันควรคุยกันตรง ๆ หรือแจ้งผู้ดูแล",
+    who: "บีม"
+  },
+  {
+    text: "โรงเรียนติดกล้องวงจรปิดบริเวณทางเดินและหน้าอาคาร พร้อมติดป้ายแจ้งว่ามีกล้องเพื่อความปลอดภัย",
+    answer: "ok",
+    explain: "การติดกล้องในพื้นที่ส่วนกลางเพื่อความปลอดภัย และแจ้งให้ทุกคนรู้ผ่านป้าย ถือเป็นการเก็บข้อมูลที่มีวัตถุประสงค์ชัดเจนและโปร่งใส ทำได้ตามหลัก PDPA แต่ต้องไม่ติดในพื้นที่ส่วนตัว เช่น ห้องน้ำ",
+    who: "ครูแอน"
+  },
+  {
+    text: "เพจรับสมัครงานพาร์ตไทม์ทักแชตมาขอสำเนาบัตรประชาชน ที่อยู่ และเลขบัญชีธนาคารทันที โดยไม่บอกว่าจะเอาไปใช้ทำอะไร",
+    answer: "wrong",
+    explain: "ผู้เก็บข้อมูลต้องแจ้งวัตถุประสงค์ให้เจ้าของข้อมูลรู้ก่อนหรือขณะเก็บ และต้องเก็บเท่าที่จำเป็น การขอข้อมูลสำคัญจำนวนมากทางแชตโดยไม่แจ้งอะไรเลย ผิดหลัก PDPA และเป็นสัญญาณเตือนของมิจฉาชีพด้วย",
+    who: "เพจหางาน"
+  },
+  {
+    text: "สั่งของจากร้านออนไลน์ ร้านขอชื่อ ที่อยู่ และเบอร์โทร เพื่อใช้จัดส่งสินค้าที่สั่ง",
+    answer: "ok",
+    explain: "ร้านเก็บข้อมูลเท่าที่จำเป็นเพื่อทำตามสัญญาซื้อขาย คือส่งของให้เรา จึงทำได้ แต่ร้านต้องไม่นำข้อมูลไปขายหรือใช้ส่งโฆษณาอื่นโดยที่เราไม่ได้ยินยอม",
+    who: "ปุ้ย"
+  }
+];
+
+/* =========================================================
+   ส่วนตั้งค่าเกม
+   ========================================================= */
+const SWIPE_THRESHOLD = 100;   // ระยะลาก (px) ที่นับว่าปัดสำเร็จ
+const RANK_GOOD = 0.8;         // ได้ ≥ 80% = "ผู้พิทักษ์ข้อมูล"
+const RANK_MID  = 0.5;         // ได้ ≥ 50% = "ระวังอีกนิด"
+const AVATAR_COLORS = ["#46e3ff", "#ff7ab0", "#b6ff3b", "#ffc94d", "#a98bff"]; // สีวงกลมชื่อผู้พูด
+
+/* =========================================================
+   ส่วนการทำงานของเกม (ปกติไม่ต้องแก้)
+   ========================================================= */
+let current = 0, score = 0, locked = false, results = [];
+const $ = id => document.getElementById(id);
+
+function show(screenId) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  $(screenId).classList.add("active");
+  window.scrollTo(0, 0);
+}
+
+function escapeHTML(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function startGame() {
+  current = 0; score = 0; results = [];
+  $("qTotal").textContent = QUESTIONS.length;
+  show("game");
+  renderCard();
+}
+
+// แถบความคืบหน้าแบบช่อง: เขียว = ตอบถูก, แดง = ตอบผิด, ฟ้า = ข้อปัจจุบัน
+function renderSegments() {
+  $("segments").innerHTML = QUESTIONS.map((_, i) => {
+    const cls = i < results.length ? (results[i] ? "right" : "miss") : (i === current ? "now" : "");
+    return `<i class="${cls}"></i>`;
+  }).join("");
+}
+
+// สร้างการ์ดใบปัจจุบัน (และการ์ดซ้อนด้านหลัง)
+function renderCard() {
+  locked = false;
+  const q = QUESTIONS[current];
+  $("qNum").textContent = current + 1;
+  $("scoreNow").textContent = score;
+  renderSegments();
+
+  const deck = $("deck");
+  deck.innerHTML = "";
+  if (current + 1 < QUESTIONS.length) {
+    const ghost = document.createElement("div");
+    ghost.className = "card ghost";
+    deck.appendChild(ghost);
+  }
+
+  const name = q.who || "ไม่ระบุชื่อ";
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `
+    <div class="stamp ok">ไม่ผิด</div>
+    <div class="stamp wrong">ผิด</div>
+    <div class="head">
+      <div class="avatar" style="background:${AVATAR_COLORS[current % AVATAR_COLORS.length]}">${escapeHTML(name.charAt(0))}</div>
+      <div class="who">${escapeHTML(name)}<small>สถานการณ์ที่ ${current + 1}</small></div>
+    </div>
+    <div class="text">${escapeHTML(q.text)}</div>
+    <div class="ask">แบบนี้ผิด PDPA ไหม?</div>
+    <div class="hint"><span>← ผิด</span><span>ไม่ผิด →</span></div>`;
+  deck.appendChild(card);
+  enableDrag(card);
+}
+
+// ระบบลากการ์ด (รองรับทั้งเมาส์และนิ้ว ผ่าน Pointer Events)
+function enableDrag(card) {
+  let startX = 0, startY = 0, dx = 0, dy = 0, dragging = false;
+  const stampOk = card.querySelector(".stamp.ok");
+  const stampWrong = card.querySelector(".stamp.wrong");
+
+  card.addEventListener("pointerdown", e => {
+    if (locked) return;
+    dragging = true; startX = e.clientX; startY = e.clientY; dx = dy = 0;
+    card.setPointerCapture(e.pointerId);
+    card.classList.add("dragging");
+    card.style.transition = "none";
+  });
+
+  card.addEventListener("pointermove", e => {
+    if (!dragging) return;
+    dx = e.clientX - startX; dy = e.clientY - startY;
+    card.style.transform = `translate(${dx}px, ${dy * 0.3}px) rotate(${dx / 14}deg)`;
+    const power = Math.min(Math.abs(dx) / SWIPE_THRESHOLD, 1);
+    stampOk.style.opacity = dx > 0 ? power : 0;
+    stampWrong.style.opacity = dx < 0 ? power : 0;
+    card.style.borderColor = dx > 20 ? "var(--lime)" : dx < -20 ? "var(--pink)" : "";
+  });
+
+  const end = () => {
+    if (!dragging) return;
+    dragging = false;
+    card.classList.remove("dragging");
+    if (dx > SWIPE_THRESHOLD) flyOut(card, "ok");
+    else if (dx < -SWIPE_THRESHOLD) flyOut(card, "wrong");
+    else { // ปัดไม่ถึง → เด้งกลับ
+      card.style.transition = "transform .3s ease";
+      card.style.transform = "";
+      card.style.borderColor = "";
+      stampOk.style.opacity = stampWrong.style.opacity = 0;
+    }
+  };
+  card.addEventListener("pointerup", end);
+  card.addEventListener("pointercancel", end);
+}
+
+// แอนิเมชันการ์ดปลิวออก แล้วไปหน้าเฉลย
+function flyOut(card, choice) {
+  if (locked) return;
+  locked = true;
+  const dir = choice === "ok" ? 1 : -1;
+  card.querySelector(".stamp." + choice).style.opacity = 1;
+  card.style.borderColor = choice === "ok" ? "var(--lime)" : "var(--pink)";
+  card.style.transition = "transform .45s ease, opacity .45s ease";
+  card.style.transform = `translate(${dir * window.innerWidth}px, -40px) rotate(${dir * 30}deg)`;
+  card.style.opacity = "0";
+  setTimeout(() => answer(choice), 420);
+}
+
+// ใช้ตอนกดปุ่ม ผิด / ไม่ผิด
+function pressButton(choice) {
+  const card = document.querySelector("#deck .card:not(.ghost)");
+  if (card) flyOut(card, choice);
+}
+
+const LABEL = { wrong: "ผิด PDPA", ok: "ไม่ผิด PDPA" };
+
+// ตรวจคำตอบและแสดงหน้าเฉลย
+function answer(choice) {
+  const q = QUESTIONS[current];
+  const correct = choice === q.answer;
+  if (correct) score++;
+  results.push(correct);
+
+  $("verdict").className = "verdict " + (correct ? "good" : "bad");
+  $("verdictIcon").setAttribute("href", correct ? "#i-check" : "#i-x");
+  $("verdictText").textContent = correct ? "ตอบถูก!" : "ตอบผิด!";
+  $("verdictSub").textContent = "คุณเลือก: " + LABEL[choice];
+  $("answerKey").textContent = LABEL[q.answer];
+  $("answerKey").className = "key " + q.answer;
+  $("revealQ").textContent = q.text;
+  $("revealExplain").textContent = q.explain;
+  $("btnNext").textContent = current + 1 < QUESTIONS.length ? "ข้อต่อไป" : "ดูผลคะแนน";
+  show("reveal");
+}
+
+function nextQuestion() {
+  current++;
+  if (current < QUESTIONS.length) { show("game"); renderCard(); }
+  else showResult();
+}
+
+// หน้าสรุปผล — แก้ข้อความตามช่วงคะแนนได้ตรงนี้
+function showResult() {
+  const total = QUESTIONS.length, ratio = score / total;
+  $("finalScore").textContent = score;
+  $("finalTotal").textContent = total;
+  let title, msg, cls, color;
+  if (ratio === 1) {
+    title = "ผู้พิทักษ์ข้อมูล"; cls = "good"; color = "var(--lime)";
+    msg = "เต็มไม่มีหัก! คุณรู้ทันเรื่องข้อมูลส่วนบุคคลสุด ๆ ชวนเพื่อนมาเล่นต่อเลย";
+  } else if (ratio >= RANK_GOOD) {
+    title = "ผู้พิทักษ์ข้อมูล"; cls = "good"; color = "var(--lime)";
+    msg = "เก่งมาก! คุณคิดก่อนกดเป็นนิสัยแล้ว พลาดไปนิดเดียวเท่านั้น";
+  } else if (ratio >= RANK_MID) {
+    title = "ระวังอีกนิด"; cls = "mid"; color = "var(--cyan)";
+    msg = "เข้าใจพื้นฐานดีแล้ว แต่ยังมีบางสถานการณ์ที่ต้องระวังเพิ่ม ลองทบทวนเช็กลิสต์ด้านล่างดูนะ";
+  } else {
+    title = "ต้องรีบอัปสกิล"; cls = "bad"; color = "var(--pink)";
+    msg = "ข้อมูลของคุณและเพื่อนอาจตกอยู่ในความเสี่ยง ลองอ่านเช็กลิสต์แล้วเล่นใหม่อีกรอบ";
+  }
+  $("rankTitle").textContent = title;
+  $("rankTitle").className = "rank " + cls;
+  $("rankMsg").textContent = msg;
+  const ring = $("ringBar");
+  ring.style.stroke = color;
+  ring.style.filter = `drop-shadow(0 0 6px ${color})`;
+  ring.style.strokeDashoffset = 440;
+  show("result");
+  requestAnimationFrame(() => setTimeout(() => { ring.style.strokeDashoffset = 440 * (1 - ratio); }, 50));
+}
+
+// ผูกปุ่มต่าง ๆ
+$("btnStart").addEventListener("click", startGame);
+$("btnWrong").addEventListener("click", () => pressButton("wrong"));
+$("btnOk").addEventListener("click", () => pressButton("ok"));
+$("btnNext").addEventListener("click", nextQuestion);
+$("btnRestart").addEventListener("click", () => show("start"));
+
+// คีย์บอร์ด: ← = ผิด, → = ไม่ผิด, Enter = ข้อต่อไป (สะดวกตอนพรีเซนต์บนจอใหญ่)
+document.addEventListener("keydown", e => {
+  if ($("game").classList.contains("active")) {
+    if (e.key === "ArrowLeft") pressButton("wrong");
+    if (e.key === "ArrowRight") pressButton("ok");
+  } else if ($("reveal").classList.contains("active") && e.key === "Enter") {
+    nextQuestion();
+  }
+});
+</script>
+</body>
+</html>
